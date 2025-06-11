@@ -1,0 +1,223 @@
+{
+  "name": "Smart Daily Report Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an intelligent assistant analyzing daily work update entries from a Google Sheet. Each row contains the following fields: Full Name, Team, Completed Tasks, Blocked Tasks, and Planned Tasks for Tomorrow.\n\nYour task is to:\n\nExamine each row of the input data.\n\nIdentify rows with pending work, specifically:\n\nIf the \"Blocked Tasks\" field is not empty and not marked as “NIL”, OR\n\nIf the \"Planned Tasks for Tomorrow\" field is not empty and not marked as “NIL”.\n\nExclude any row where both \"Blocked Tasks\" and \"Planned Tasks for Tomorrow\" are empty or marked as “NIL”.\n\nReturn a concise and clear summary of each filtered row.\n\nFor each matching row, include:\n\nName\n\nTeam\n\nBlocked Tasks (if present)\n\nPlanned Tasks (if present)\n\n🔹 The output must be presented line by line, in plain, professional text format — suitable for inclusion in an email notification.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        440,
+        20
+      ],
+      "id": "ab1e40f1-1322-43cd-a86f-fa2b1c7ad9a0",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        320,
+        240
+      ],
+      "id": "d330bc3c-d112-4b34-87da-fe1c6ef6d276",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Ukuu76Q1qc3k1Gf4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "test"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        300
+      ],
+      "id": "19a23192-686a-4461-afc4-847775f23a19",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $(\"Google Sheets\").all();\nconst filteredRows = rows.filter(\n  (row) =>\n    row?.json[\"Blocked Tasks (if any) \"] ||\n    row?.json[\"Planned Tasks for Tomorrow\"],\n);\n\nconst formattedRows = filteredRows.map((row) => {\n  return {\n    \"Full Name\": row?.json[\"Full Name (Short Answer) \"],\n    \"Team / Department\": row?.json[\" Team / Department \"],\n    \"Date of Report\": row?.json[\"Date of Report \"],\n    \"Completed Tasks\": row?.json[\"Completed Tasks \"],\n    \"Blocked Tasks\": row?.json[\"Blocked Tasks (if any) \"],\n    \"Planned Tasks for Tomorrow\": row?.json[\"Planned Tasks for Tomorrow\"],\n  };\n});\n\nreturn { \"LLM Output\": formattedRows };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        20
+      ],
+      "id": "b77ae65d-6dd3-4640-8714-a107090a6c66",
+      "name": "Code1",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -120,
+        40
+      ],
+      "id": "64884b58-705d-4984-8556-b16a870befd9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1TlAgjBeAQsWshEhS6Ga5TkUp8j6tx35Tt09Cgy1BycA",
+          "mode": "list",
+          "cachedResultName": "Daily Work Update Submission (Responses)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TlAgjBeAQsWshEhS6Ga5TkUp8j6tx35Tt09Cgy1BycA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1376691209,
+          "mode": "list",
+          "cachedResultName": "sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1TlAgjBeAQsWshEhS6Ga5TkUp8j6tx35Tt09Cgy1BycA/edit#gid=1376691209"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        60,
+        40
+      ],
+      "id": "f0393712-ecd6-4aed-b6f5-753da7a75477",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2FDzRZZHxXANpMIQ",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ String($json[\"to\"] || \"maximus4682@gmail.com\").trim() }}\n",
+        "subject": "={{ String($json[\"subject\"] || \"Daily Summary Report\").trim() }}\n",
+        "message": "={{ $json['LLM Output'][5]['Date of Report'] }}\n{{ $json['LLM Output'][5]['Completed Tasks'] }}\n{{ $json['LLM Output'][5]['Blocked Tasks'] }}\n{{ $json['LLM Output'][5]['Planned Tasks for Tomorrow'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        980,
+        20
+      ],
+      "id": "bc76700c-ebaf-47be-85cb-49e55d888f77",
+      "name": "Gmail",
+      "webhookId": "0a290cd3-4f4d-4864-afc2-6fe5c39cd632",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CDsOUQrR9AP1wKde",
+          "name": "Gmail account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f1825cae-417a-45eb-9d35-9e13f84b0e58",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "845e3b96909436c5ca0d1037e40ed881704b3fa08189df30fe57e85c736508c2"
+  },
+  "id": "XuI7IwWD5VfH54Ec",
+  "tags": []
+}
