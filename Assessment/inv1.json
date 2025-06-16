@@ -1,0 +1,277 @@
+{
+  "name": "inv1",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "inventory123",
+        "options": {}
+      },
+      "id": "40479c19-f239-4f94-ac36-380c16aa8b45",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        -60
+      ],
+      "webhookId": "0b1af37d-b5fe-4827-99c7-95d32493f474"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1UgXAfuCjoDfAgMsUY2oPkkWXJCStvcBc1a4I4an6LIw",
+          "mode": "list",
+          "cachedResultName": "hr_report-sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UgXAfuCjoDfAgMsUY2oPkkWXJCStvcBc1a4I4an6LIw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1UgXAfuCjoDfAgMsUY2oPkkWXJCStvcBc1a4I4an6LIw/edit#gid=0"
+        },
+        "columnToMatchOn": "Cutoff Stock",
+        "valueToMatchOn": "={{ $json['headers']}}",
+        "fieldsUi": {
+          "values": [
+            {
+              "column": "Stock Trend"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a411b745-c91c-421f-9f9d-8c29d3ade578",
+      "name": "Read Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        -440,
+        -60
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2FDzRZZHxXANpMIQ",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        180,
+        300
+      ],
+      "id": "8c747498-4ab1-442b-94bd-e195363860da",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Ukuu76Q1qc3k1Gf4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an inventory analysis assistant for a rural/urban Indian provision store.\n\nGiven item-wise inventory data, perform the following:\n1. Identify items where \"Current Stock in Hand\" is less than \"Cutoff Stock\".\n2. Suggest reorder quantity:\n   - \"Sold Often\" → reorder = 2 × cutoff\n   - \"Moderate Sale\" → reorder = 1 × cutoff\n   - \"Sold Rarely\" → reorder = 0.5 × cutoff\n3. Generate WhatsApp-style alert messages in Tamil for each low-stock item.\n\nRespond in structured JSON like:\n{\n  \"low_stock_alerts\": [\n    \"அரிசி குறைவாக உள்ளது. மீண்டும் 10 கிலோ வாங்க பரிந்துரை.\",\n    ...\n  ],\n  \"reorder_suggestions\": [\n    { \"item\": \"Rice\", \"reorder_quantity\": 10 },\n    ...\n  ],\n  \"summary\": {\n    \"low_stock_count\": 7,\n    \"notes\": \"Stockout risk in 3 critical items\"\n  }\n}\nOnly return JSON output.\n {{ $json.headers }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -140
+      ],
+      "id": "b1d25e5a-3ec9-413b-baf4-04bd75339f26",
+      "name": "Inventory analysis assistant Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an inventory reporting assistant.\n\nAnalyze the given inventory data and summarize the weekly performance with:\n- Total number of items\n- Number of low-stock items\n- Top 5 fast-moving items (based on \"Stock Sold Since the Last Purchase\")\n- Items not sold at all\n- Recommendations to prevent stockouts and overstock\n\n\n\nRespond in markdown format:\n### Inventory Health Summary\n- Total Items: ...\n- Low Stock Items: ...\n- Top Fast-Movers: ...\n- Zero Movement Items: ...\n- Recommendation: ...\n- Weekly performance report: ...\n\nNo explanations, just the markdown report.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -120
+      ],
+      "id": "2355dd1c-34f5-411b-9d7d-b4e982573751",
+      "name": "Inventory reporting assistant Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a sales forecasting assistant.\n\nUsing the field \"Stock Sold Since the Last Purchase\" and \"Sale Frequency Category\" for each item, predict the expected demand for next week using simple multipliers:\n- Sold Often: 1.5 × recent sales\n- Moderate Sale: 1 × recent sales\n- Sold Rarely: 0.5 × recent sales\n\nOutput format:\n{\n  \"forecasted_demand\": [\n    { \"item\": \"Sugar\", \"expected_units\": 30 },\n    ...\n  ]\n}\nOnly return valid JSON output.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -20
+      ],
+      "id": "c6cd06b9-9dd0-4e05-bcbe-52aef94230df",
+      "name": "Sales forecasting assistant Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a communication formatter.\n\nYou will receive a list of low-stock items and alerts. Generate:\n1. A formal email message summarizing the critical stock alerts (for management).\n2. Casual SMS messages in Tamil for shop assistants (short and easy to understand).\n\nOutput JSON:\n{\n  \"email_summary\": \"Dear Manager,\\nThe following items are below threshold: ...\",\n  \"sms_alerts\": [\n    \"அரிசி குறைவாக உள்ளது!\",\n    \"சர்க்கரை மீண்டும் வாங்க வேண்டும்.\"\n  ]\n}\nRespond only in valid JSON.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        700,
+        -20
+      ],
+      "id": "310d2c2a-3f6c-40b9-91a4-a767de6e8744",
+      "name": "Communication formatter Agent"
+    },
+    {
+      "parameters": {
+        "sendTo": "gopikrishnan2864@gmail.com",
+        "subject": "Alert Received",
+        "message": "=Hi Alert Received {{ $json['output'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1020,
+        -140
+      ],
+      "id": "f3eae3ca-16db-415b-83b0-22efb5c77f70",
+      "name": "Gmail",
+      "webhookId": "9bab4eee-4235-42a4-b129-250eac28fcbc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CDsOUQrR9AP1wKde",
+          "name": "Gmail account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Inventory analysis assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Inventory analysis assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Sales forecasting assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Inventory reporting assistant Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Communication formatter Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inventory analysis assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Sales forecasting assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inventory reporting assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Communication formatter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales forecasting assistant Agent": {
+      "main": [
+        [
+          {
+            "node": "Inventory reporting assistant Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Communication formatter Agent": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7df916c6-9ad4-4971-bd22-c376eb8bf76e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "845e3b96909436c5ca0d1037e40ed881704b3fa08189df30fe57e85c736508c2"
+  },
+  "id": "kH2uKNhuvdct6Xcb",
+  "tags": []
+}
